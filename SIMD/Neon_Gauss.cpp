@@ -5,11 +5,13 @@
 #include <bits/stdc++.h>
 #include <arm_neon.h>
 #include <time.h>
+#include <fstream>
 
 const int maxN = 10000;
 int n;
 float A[maxN][maxN];
 using namespace std;
+
 void A_reset()
 {
     for (int i = 0; i < n; i++)
@@ -50,6 +52,7 @@ void normal_Gauss() //没加SSE串行的高斯消去法
         {
             A[k][j] = A[k][j] / tmp;
         }
+
         for (int i = k + 1; i < n; i++)
         {
             float tmp2 = A[i][k];
@@ -62,17 +65,119 @@ void normal_Gauss() //没加SSE串行的高斯消去法
     }
     return;
 }
-void Neon_Gauss()
+//void Neon_Gauss()
+//{
+//    float32x4_t vt, va,vaij,vaik,vakj,vx;
+//    for (int k = 0; k < n; k++)
+//    {
+//        vt = vdupq_n_f32(A[k][k]);
+//        int j = k + 1;
+//        for(j=k+1; j + 4 <= n; j += 4)
+//        {
+//            va = vld1q_f32(&A[k][j]);
+//            va=vdivq_f32(va, vt);
+//            vst1q_f32(&A[k][j], va);
+//        }
+//        for (; j <= n; j++)
+//        {
+//            A[k][j] = A[k][j] / A[k][k];
+//        }
+//        A[k][k] = 1.0;
+//        for (int i = k + 1; i < n; i++)
+//        {
+//            vaik = vdupq_n_f32(A[i][k]);
+//            int j = k + 1;
+//            for (j = k + 1; j + 4 <= n; j += 4)
+//            {
+//                vakj = vld1q_f32(&A[k][j]);
+//                vaij = vld1q_f32(&A[i][j]);
+//                vx = vmulq_f32(vakj, vaik);
+//                vaij= vsubq_f32(vaij, vx);
+//                vst1q_f32(&A[i][j], vaij);
+//            }
+//            for (; j <= n; j++)
+//            {
+//                A[i][j] =A[i][j]- A[k][j] * A[i][k];
+//            }
+//            A[i][k] = 0;
+//
+//        }
+//    }
+//}
+void Neon_Gauss_part1()
 {
-    float32x4_t vt, va,vaij,vaik,vakj,vx;
+    float32x4_t vt, va, vaij, vaik, vakj, vx;
     for (int k = 0; k < n; k++)
     {
         vt = vdupq_n_f32(A[k][k]);
         int j = k + 1;
-        for(j=k+1; j + 4 <= n; j += 4)
+        for (j = k + 1; j + 4 <= n; j += 4)
         {
             va = vld1q_f32(&A[k][j]);
-            va=vdivq_f32(va, vt);
+            va = vdivq_f32(va, vt);
+            vst1q_f32(&A[k][j], va);
+        }
+        for (; j <= n; j++)
+        {
+            A[k][j] = A[k][j] / A[k][k];
+        }
+        A[k][k] = 1.0;
+        for (int i = k + 1; i < n; i++)
+        {
+            float tmp2 = A[i][k];
+            for (int j = k + 1; j < n; j++)
+            {
+                A[i][j] = A[i][j] - tmp2 * A[k][j];
+            }
+            A[i][k] = 0;
+
+        }
+    }
+}
+void Neon_Gauss_part2() 
+{
+    float32x4_t vt, va, vaij, vaik, vakj, vx;
+    for (int k = 0; k < n; k++)
+    {
+        float tmp = A[k][k];
+        for (int j = k; j < n; j++)
+        {
+            A[k][j] = A[k][j] / tmp;
+        }
+        A[k][k] = 1.0;
+        for (int i = k + 1; i < n; i++)
+        {
+            vaik = vdupq_n_f32(A[i][k]);
+            int j = k + 1;
+            for (j = k + 1; j + 4 <= n; j += 4)
+            {
+                vakj = vld1q_f32(&A[k][j]);
+                vaij = vld1q_f32(&A[i][j]);
+                vx = vmulq_f32(vakj, vaik);
+                vaij = vsubq_f32(vaij, vx);
+                vst1q_f32(&A[i][j], vaij);
+            }
+            for (; j <= n; j++)
+            {
+                A[i][j] = A[i][j] - A[k][j] * A[i][k];
+            }
+            A[i][k] = 0;
+
+        }
+    }
+    return;
+}
+void Neon_Gauss()
+{
+    float32x4_t vt, va, vaij, vaik, vakj, vx;
+    for (int k = 0; k < n; k++)
+    {
+        vt = vdupq_n_f32(A[k][k]);
+        int j = k + 1;
+        for (j = k + 1; j + 4 <= n; j += 4)
+        {
+            va = vld1q_f32(&A[k][j]);
+            va = vdivq_f32(va, vt);
             vst1q_f32(&A[k][j], va);
         }
         for (; j <= n; j++)
@@ -89,21 +194,59 @@ void Neon_Gauss()
                 vakj = vld1q_f32(&A[k][j]);
                 vaij = vld1q_f32(&A[i][j]);
                 vx = vmulq_f32(vakj, vaik);
-                vaij= vsubq_f32(vaij, vx);
+                vaij = vsubq_f32(vaij, vx);
                 vst1q_f32(&A[i][j], vaij);
             }
             for (; j <= n; j++)
             {
-                A[i][j] =A[i][j]- A[k][j] * A[i][k];
+                A[i][j] = A[i][j] - A[k][j] * A[i][k];
             }
             A[i][k] = 0;
 
         }
     }
-    
-
-    
 }
+void Neon_Gauss_aligned()
+{
+    float32_t* ptrA = &A[0][0];
+    for (int k = 0; k < n; k++)
+    {
+        float32x4_t vt = vdupq_n_f32(ptrA[k * n + k]);
+        int j = k + 1;
+        for (j = k + 1; j + 3 < n; j += 4)
+        {
+            float32x4_t va = vld1q_f32(&ptrA[k * n + j]);
+            va = vdivq_f32(va, vt);
+            vst1q_f32(&ptrA[k * n + j], va);
+        }
+        for (; j < n; j++)
+        {
+            ptrA[k * n + j] = ptrA[k * n + j] / ptrA[k * n + k];
+        }
+        ptrA[k * n + k] = 1.0;
+        for (int i = k + 1; i < n; i++)
+        {
+            float32x4_t vaik = vdupq_n_f32(ptrA[i * n + k]);
+            j = k + 1;
+            for (j = k + 1; j + 3 < n; j += 4)
+            {
+                float32x4_t vakj = vld1q_f32(&ptrA[k * n + j]);
+                float32x4_t vaij = vld1q_f32(&ptrA[i * n + j]);
+                float32x4_t vx = vmulq_f32(vakj, vaik);
+                vaij = vsubq_f32(vaij, vx);
+                vst1q_f32(&ptrA[i * n + j], vaij);
+            }
+            for (; j < n; j++)
+            {
+                ptrA[i * n + j] = ptrA[i * n + j] - ptrA[k * n + j] * ptrA[i * n + k];
+            }
+            ptrA[i * n + k] = 0;
+        }
+    }
+}
+
+
+
 int main()
 {
     cin >> n;
@@ -121,20 +264,33 @@ int main()
 
     cout << endl << endl << endl << "使用Normal的高斯消去法" << endl;
 
-    clock_t start, end;
-    start = clock();
+    clock_t start1, end1;
+    start1 = clock();
 
     normal_Gauss();
 
-    end = clock();
-    printf("totile time=%f\n", (float)(end - start) * 1000 / CLOCKS_PER_SEC);
+    end1 = clock();
+    printf("totile time=%f\n", (float)(end1 - start1) * 1000 / CLOCKS_PER_SEC);
    
-    //for (int i = 0; i < n; i++)
-    //{
-    //    for (int j = 0; j < n; j++)
-    //        cout << A[i][j] << " ";
-    //    cout << endl;
-    //}
+    cout << endl << endl << endl << "使用Neon_Gauss_part1的高斯消去法" << endl;
+
+    clock_t start2, end2;
+    start2 = clock();
+
+    Neon_Gauss_part1();
+
+    end2 = clock();
+    printf("totile time=%f\n", (float)(end2 - start2) * 1000 / CLOCKS_PER_SEC);
+
+    cout << endl << endl << endl << "使用Neon_Gauss_part2的高斯消去法" << endl;
+
+    clock_t start3, end3;
+    start3 = clock();
+
+    Neon_Gauss_part2();
+
+    end3 = clock();
+    printf("totile time=%f\n", (float)(end3 - start3) * 1000 / CLOCKS_PER_SEC);
     
     return 0;
 
