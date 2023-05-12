@@ -163,33 +163,52 @@ double SpecialNeonUnaligned() {
 signed main() {
     ios::sync_with_stdio(false);
 
-    string prematrixFilePath = "/home/data/Groebner/5_2362_1226_453/1.txt";
-    string sufmatrixFilePath = "/home/data/Groebner/5_2362_1226_453/2.txt";
-    string resultFilePath = "/home/ss2112529/Special_Gauss/myresult.txt";
 
-    //Standard
-    fins.open(prematrixFilePath);
-    inputPreMatrix();
-    fins.close();
+    string s1[5];
+    s1[0] = "/home/data/Groebner/5_2362_1226_453/1.txt";
+    s1[1] = "/home/data/Groebner/6_3799_2759_1953/1.txt";
+    s1[2] = "/home/data/Groebner/7_8399_6375_4535/1.txt";
+    s1[3] = "/home/data/Groebner/8_23045_18748_14325/1.txt";
+    s1[4] = "/home/data/Groebner/9_37960_29304_14921/1.txt";
+    string s2[5];
+    s2[0] = "/home/data/Groebner/5_2362_1226_453/2.txt";
+    s2[1] = "/home/data/Groebner/6_3799_2759_1953/2.txt";
+    s2[2] = "/home/data/Groebner/7_8399_6375_4535/2.txt";
+    s2[3] = "/home/data/Groebner/8_23045_18748_14325/2.txt";
+    s2[4] = "/home/data/Groebner/9_37960_29304_14921/2.txt";
 
-    fins.open(sufmatrixFilePath);
-    fouts.open(resultFilePath);
-    SpecialNeonStandard();
-    fouts.close();
-    fins.close();
+    for (int i = 0; i < 5; i++)
+    {
+        string prematrixFilePath = s1[i];
+        string sufmatrixFilePath = s2[i];
+        string resultFilePath = "/home/ss2112529/Special_Gauss/myresult.txt";
+        //Standard
+        fins.open(prematrixFilePath);
+        inputPreMatrix();
+        fins.close();
 
-    clearData();
+        fins.open(sufmatrixFilePath);
+        fouts.open(resultFilePath);
+        SpecialNeonStandard();
+        fouts.close();
+        fins.close();
 
-    //Unaligned
-    fins.open(prematrixFilePath);
-    inputPreMatrix();
-    fins.close();
+        clearData();
 
-    fins.open(sufmatrixFilePath);
-    fouts.open(resultFilePath);
-    SpecialNeonUnaligned();
-    fouts.close();
-    fins.close();
+        //Unaligned
+        fins.open(prematrixFilePath);
+        inputPreMatrix();
+        fins.close();
+
+        fins.open(sufmatrixFilePath);
+        fouts.open(resultFilePath);
+        SpecialNeonUnaligned();
+        fouts.close();
+        fins.close();
+    }
+    
+
+    
 
     return 0;
 }

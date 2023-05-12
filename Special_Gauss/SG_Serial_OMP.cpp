@@ -7,11 +7,11 @@
 #include <fstream>
 #include <sstream>
 #include <string>
-
+#include<omp.h>
 using namespace std;
 
 const int IntegerLen = 32;
-const int MaxRowCount = 54400;//不小于实际最大行数的最小的IntegerLen的倍数
+const int MaxRowCount = 3900;//不小于实际最大行数的最小的IntegerLen的倍数
 bool finishReadFlag, occupyRow[MaxRowCount];
 alignas(32) int mtrx[MaxRowCount][MaxRowCount / IntegerLen];
 alignas(32) int ques[MaxRowCount / IntegerLen];//当前待消元行
@@ -56,7 +56,8 @@ int SpecialSerialForSingleRow() {//返回消元完毕后最左侧非零元所在列，若全为0则返
                 if (getColBit(ques, i, j)) {
                     int colnow = i * IntegerLen + j;
                     if (occupyRow[colnow]) {
-                        
+                        bool parallel = true;
+#pragma omp parallel if(parallel), num_threads(NUMS_THREADS)
                         for (int k = i; k >= 0; k--)
                             ques[k] ^= mtrx[colnow][k];
                     }
@@ -133,7 +134,6 @@ int main() {
         fouts.close();
         fins.close();
     }
-    
 
     return 0;
 }
