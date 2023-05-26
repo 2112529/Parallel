@@ -4,8 +4,9 @@
 #include <stdlib.h>
 #include <iostream>
 #include <omp.h>
-#include<immintrin.h>
-#define NUM_THREADS 4
+#define NUM_THREADS 12
+#include <sys/time.h>
+#include <bits/stdc++.h>
 using namespace std;
 //进程数
 int n_threads = 8;
@@ -42,60 +43,74 @@ void Print() {
 
 }
 int main(int argc, char* argv[]) {
-    int myid = 0;
+    
     MPI_Init(&argc, &argv);//MPI进行必要的初始化工作
-    MPI_Comm_size(MPI_COMM_WORLD, &n_threads);//设置进程数为n_threads
-    MPI_Comm_rank(MPI_COMM_WORLD, &myid);//识别调用进程的rank，值从0到size-1
 
-    //初始化矩阵A
-    init();//question:是分别调用init吗？
+    for (int num = 0; num < 11; num++)
+    {
+        int myid = 0;
+        MPI_Comm_size(MPI_COMM_WORLD, &n_threads);//设置进程数为n_threads
+        MPI_Comm_rank(MPI_COMM_WORLD, &myid);//识别调用进程的rank，值从0到size-1
 
-    int tmp = (N - N % n_threads) / n_threads;
-    int r1 = myid * tmp;
-    int r2 = myid * tmp + tmp - 1;
-    int i, j, k;
+        //初始化矩阵A
+        init();//question:是分别调用init吗？
 
-    //计时开始
-    double ts = MPI_Wtime();
 
-    for (k = 0; k < N; k++) {
-        if (k >= r1 && k <= r2) {
-            for (j = k + 1; j < N; j++) {
-                A[k][j] = A[k][j] / A[k][k];
-            }
-            A[k][k] = 1.0;
-            for (j = 0; j < n_threads; j++) {
-                if (j == myid) continue;
-                MPI_Send(&A[k][0], N, MPI_FLOAT, j, 100 - myid, MPI_COMM_WORLD);
-            }
-        }
-        else {
-            MPI_Recv(&A[k][0], N, MPI_FLOAT, k / tmp, 100 - k / tmp, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        }
-        if (r2 >= k + 1 && r1 < k + 1) {
-            for (i = k + 1; i <= r2; i++) {
-#pragma omp parallel for num_threads(NUM_THREADS)
-                for (int j = k + 1; j < N; j++) {
-                    A[i][j] = A[i][j] - A[k][j] * A[i][k];
+        double elapsed_time = 0;
+        timeval start_time, end_time;
+        gettimeofday(&start_time, NULL);
+
+        int tmp = (N - N % n_threads) / n_threads;
+        int r1 = myid * tmp;
+        int r2 = myid * tmp + tmp - 1;
+        int i, j, k;
+
+        //计时开始
+
+
+        for (k = 0; k < N; k++) {
+            if (k >= r1 && k <= r2) {
+                for (j = k + 1; j < N; j++) {
+                    A[k][j] = A[k][j] / A[k][k];
                 }
-                A[i][k] = 0;
-            }
-        }
-        if (r1 >= k + 1) {
-            for (i = r1; i <= r2 && i < N; i++) {
-#pragma omp parallel for num_threads(NUM_THREADS)
-                for (int j = k + 1; j < N; j++) {
-                    A[i][j] = A[i][j] - A[k][j] * A[i][k];
+                A[k][k] = 1.0;
+                for (j = 0; j < n_threads; j++) {
+                    if (j == myid) continue;
+                    MPI_Send(&A[k][0], N, MPI_FLOAT, j, 100 - myid, MPI_COMM_WORLD);
                 }
-                A[i][k] = 0;
+            }
+            else {
+                MPI_Recv(&A[k][0], N, MPI_FLOAT, k / tmp, 100 - k / tmp, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            }
+            if (r2 >= k + 1 && r1 < k + 1) {
+                for (i = k + 1; i <= r2; i++) {
+#pragma omp parallel for num_threads(NUM_THREADS)
+                    for (int j = k + 1; j < N; j++) {
+                        A[i][j] = A[i][j] - A[k][j] * A[i][k];
+                    }
+                    A[i][k] = 0;
+                }
+            }
+            if (r1 >= k + 1) {
+                for (i = r1; i <= r2 && i < N; i++) {
+#pragma omp parallel for num_threads(NUM_THREADS)
+                    for (int j = k + 1; j < N; j++) {
+                        A[i][j] = A[i][j] - A[k][j] * A[i][k];
+                    }
+                    A[i][k] = 0;
+                }
             }
         }
+        if (myid == 0) {
+            gettimeofday(&end_time, NULL);
+            elapsed_time += (end_time.tv_sec - start_time.tv_sec) * 1000.0
+                + (end_time.tv_usec - start_time.tv_usec) / 1000.0;
+            cout << elapsed_time << endl;
+            std::cout << "MPI_OMP time: " << std::fixed << std::setprecision(2) << elapsed_time << "ms\n" << endl;;
+        }
+
     }
-    if (myid == 0) {
-        double te = MPI_Wtime();
-        cout << "N:" << N << ",Time:" << te - ts << "s";
-        //Print();
-    }
+    
     MPI_Finalize();
     return 0;
 }
